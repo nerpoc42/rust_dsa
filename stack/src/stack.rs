@@ -22,7 +22,7 @@ impl<T> Node<T> {
 
         for _ in 0..idx {
             iter = match iter {
-                None => None,
+                None => break,
                 Some(node) => node.lower_node.as_deref_mut()
             }
         }
