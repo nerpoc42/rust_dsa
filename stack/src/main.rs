@@ -1,4 +1,4 @@
-pub mod stack;
+extern crate stack;
 use stack::*;
 
 fn main() {
