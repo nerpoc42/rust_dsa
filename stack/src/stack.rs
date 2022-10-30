@@ -6,28 +6,8 @@ struct Node<T> {
 }
 
 impl<T> Node<T> {
-    pub fn new_link(data: T, lower_node: Link<T>) -> Link<T> {
+    pub fn make_link(data: T, lower_node: Link<T>) -> Link<T> {
         Some(Box::new(Self { lower_node, data }))
-    }
-
-    pub fn remove_next(&mut self) -> Option<T> {
-        self.lower_node.take().map(|target| {
-            self.lower_node = target.lower_node;
-            target.data
-        })
-    }
-
-    pub fn nth_node(&mut self, idx: usize) -> Option<&mut Self> {
-        let mut iter = Some(self);
-
-        for _ in 0..idx {
-            iter = match iter {
-                None => break,
-                Some(node) => node.lower_node.as_deref_mut()
-            }
-        }
-
-        iter
     }
 }
 
@@ -61,12 +41,12 @@ impl<T> Stack<T> {
         self.top_node.as_ref().map(|node| &node.data)
     }
 
-    pub fn peek_mut(&mut self) -> Option<&T> {
-        self.top_node.as_mut().map(|n| &n.data)
+    pub fn peek_mut(&mut self) -> Option<&mut T> {
+        self.top_node.as_mut().map(|n| &mut n.data)
     }
 
     pub fn push(&mut self, data: T) {
-        self.top_node = Node::new_link(data, self.top_node.take());
+        self.top_node = Node::make_link(data, self.top_node.take());
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -93,11 +73,7 @@ impl<T> Stack<T> {
     }
 
     pub fn remove(&mut self, idx: usize) -> Option<T> {
-        if idx == 0 {
-            return self.pop();
-        }
-
-        self.top_node.as_mut()?.nth_node(idx-1)?.remove_next()
+        self.iter_mut().remove_nth(idx)
     }
 }
 
@@ -126,6 +102,38 @@ impl<'a, T> Iterator for IterMut<'a, T> {
             self.link.replace(&mut node.lower_node);
             &mut node.data
         })
+    }
+}
+
+impl<'a, T> IterMut<'a, T> {
+    pub fn remove_next(&mut self) -> Option<T> {
+        // Gets current link
+        let link = self.link.take()?;
+
+        // Gets the node that link has
+        let node = link.take()?;
+
+        // Extracts data and lower_node from the node
+        let Node { lower_node, data} = *node;
+
+        // Replaces current node link with lower_node if it's not empty
+        if let Some(lower_node) = lower_node {
+            link.replace(lower_node);
+        }
+
+        // Updates what iterator is looking at
+        self.link.replace(link);
+
+        // Returns data
+        Some(data)
+    }
+
+    pub fn remove_nth(&mut self, idx: usize) -> Option<T> {
+        for _ in 0..idx {
+            self.next()?;
+        }
+
+        self.remove_next()
     }
 }
 
@@ -170,5 +178,116 @@ impl<T> Iterator for IntoIter<T> {
             self.link = Some(node.lower_node);
             node.data
         })
+    }
+}
+
+// Tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_pop() {
+        let mut stack = Stack::new();
+
+        stack.push(10);
+        stack.push(15);
+        stack.push(11);
+
+        assert_eq!(stack.pop(), Some(11));
+        assert_eq!(stack.pop(), Some(15));
+        assert_eq!(stack.pop(), Some(10));
+        assert_eq!(stack.pop(), None);
+        assert_eq!(stack.pop(), None);
+    }
+    
+    #[test]
+    fn peek() {
+        let mut stack = Stack::new();
+
+        assert_eq!(stack.peek(), None);
+        assert_eq!(stack.peek_mut(), None);
+
+        stack.push(10);
+        assert_eq!(stack.peek(), Some(&10));
+        assert_eq!(stack.peek_mut(), Some(&mut 10));
+
+        stack.push(15);
+        assert_eq!(stack.peek(), Some(&15));
+        assert_eq!(stack.peek_mut(), Some(&mut 15));
+
+        stack.push(11);
+        assert_eq!(stack.peek(), Some(&11));
+        assert_eq!(stack.peek_mut(), Some(&mut 11));
+    }
+
+    #[test]
+    fn nth() {
+        let mut stack = Stack::new();
+
+        assert_eq!(stack.nth(0), None);
+        assert_eq!(stack.nth_mut(0), None);
+
+        stack.push(10);
+        stack.push(15);
+        stack.push(11);
+
+        assert_eq!(stack.nth(0), Some(&11));
+        assert_eq!(stack.nth(1), Some(&15));
+        assert_eq!(stack.nth(2), Some(&10));
+        assert_eq!(stack.nth_mut(0), Some(&mut 11));
+        assert_eq!(stack.nth_mut(1), Some(&mut 15));
+        assert_eq!(stack.nth_mut(2), Some(&mut 10));
+
+        assert_eq!(stack.nth(3), None);
+        assert_eq!(stack.nth_mut(4), None);
+    }
+
+    #[test]
+    fn remove() {
+        let mut stack = Stack::new();
+
+        assert_eq!(stack.remove(0), None);
+
+        stack.push(10);
+        stack.push(15);
+        stack.push(11);
+
+        assert_eq!(stack.remove(1), Some(15));
+        assert_eq!(stack.remove(1), Some(10));
+        assert_eq!(stack.remove(1), None);
+        assert_eq!(stack.remove(0), Some(11));
+        assert_eq!(stack.remove(0), None);
+
+        assert_eq!(stack.peek(), None);
+    }
+
+    #[test]
+    fn contains() {
+        let mut stack = Stack::new();
+
+        assert!(!stack.contains(&0));
+
+        stack.push(10);
+        
+        assert!(!stack.contains(&0));
+        assert!(stack.contains(&10));
+
+        stack.pop();
+
+        assert!(!stack.contains(&10));
+
+        stack.push(15);
+        stack.push(11);
+
+        assert!(!stack.contains(&10));
+        assert!(stack.contains(&15));
+        assert!(stack.contains(&11));
+
+        stack.pop();
+        stack.pop();
+
+        assert!(!stack.contains(&15));
+        assert!(!stack.contains(&11));
     }
 }
