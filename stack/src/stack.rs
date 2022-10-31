@@ -98,10 +98,14 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.link.take()?.as_mut().map(|node| {
-            self.link.replace(&mut node.lower_node);
-            &mut node.data
-        })
+        // Gets current node
+        let node = self.link.take()?.as_mut()?;
+        
+        // Observes next link
+        self.link.replace(&mut node.lower_node);
+
+        // Returns old data
+        Some(&mut node.data)
     }
 }
 
@@ -110,22 +114,17 @@ impl<'a, T> IterMut<'a, T> {
         // Gets current link
         let link = self.link.take()?;
 
-        // Gets the node that link has
+        // Gets node in link
         let node = link.take()?;
 
-        // Extracts data and lower_node from the node
-        let Node { lower_node, data} = *node;
+        // Replaces current node link with lower_node
+        *link = node.lower_node;
 
-        // Replaces current node link with lower_node if it's not empty
-        if let Some(lower_node) = lower_node {
-            link.replace(lower_node);
-        }
-
-        // Updates what iterator is looking at
+        // Observes next link
         self.link.replace(link);
 
-        // Returns data
-        Some(data)
+        // Returns old data
+        Some(node.data)
     }
 
     pub fn remove_nth(&mut self, idx: usize) -> Option<T> {
