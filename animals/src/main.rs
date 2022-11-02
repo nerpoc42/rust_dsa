@@ -135,11 +135,11 @@ impl Animal for Hamster {
 }
 
 fn main() {
-    let mut animals = vec![
-        Box::new(Fish::new(1, String::from("Nemo"))) as Box<dyn Animal>,
-        Box::new(Hamster::new(2, String::from("dog"), String::from("red"))) as Box<dyn Animal>,
-        Box::new(Fish::new(4, String::from("FishB"))) as Box<dyn Animal>,
-        Box::new(Hamster::new(3, String::from("FishB"), String::from("red"))) as Box<dyn Animal>,
+    let mut animals: Vec<Box<dyn Animal>> = vec![
+        Box::new(Fish::new(1, String::from("Nemo"))),
+        Box::new(Hamster::new(2, String::from("dog"), String::from("red"))),
+        Box::new(Fish::new(4, String::from("FishB"))),
+        Box::new(Hamster::new(3, String::from("FishB"), String::from("red"))),
     ];
 
     animals.sort();
